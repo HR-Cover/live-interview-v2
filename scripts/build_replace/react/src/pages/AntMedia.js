@@ -489,7 +489,39 @@ function AntMedia(props) {
             setParticipantUpdated(!participantUpdated);
             //console.log("setParticipantUpdated due to videoTrackAssignments or allParticipants change.");
         }, 5000);
-    }, [videoTrackAssignments, allParticipants]); // eslint-disable-line 
+    }, [videoTrackAssignments, allParticipants]); // eslint-disable-line
+
+    React.useEffect(() => {
+      if (!webRTCAdaptor || priorityParticipants.length === 0) {
+        return;
+      }
+
+      // Find which priority participants don't have video tracks
+      const prioritizedWithoutTracks = priorityParticipants.filter(streamId => {
+        return !videoTrackAssignments.some(vta => vta.streamId === streamId);
+      });
+
+      if (prioritizedWithoutTracks.length === 0) {
+        return;
+      }
+
+      // Find non-priority participants that have video tracks (excluding pinned and local)
+      const nonPriorityWithTracks = videoTrackAssignments.filter(vta =>
+        !priorityParticipants.includes(vta.streamId) &&
+        vta.streamId !== currentPinInfo?.streamId &&
+        vta.videoLabel !== 'localVideo' &&
+        !vta.isMine
+      );
+
+      // Reassign tracks from non-priority to priority participants
+      prioritizedWithoutTracks.forEach((streamId, index) => {
+        if (index < nonPriorityWithTracks.length) {
+          const trackToReassign = nonPriorityWithTracks[index];
+          console.log(`Reassigning ${trackToReassign.videoLabel} from ${trackToReassign.streamId} to priority participant ${streamId}`);
+          webRTCAdaptor.assignVideoTrack(trackToReassign.videoLabel, streamId, true);
+        }
+      });
+    }, [priorityParticipants, videoTrackAssignments, currentPinInfo, webRTCAdaptor]);
 
     function handleUnauthorizedDialogExitClicked() {
 
