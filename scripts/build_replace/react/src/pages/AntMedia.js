@@ -351,6 +351,7 @@ function AntMedia(props) {
 
     const [appSettingsMaxVideoTrackCount, setAppSettingsMaxVideoTrackCount] = React.useState(6);
     const [currentPinInfo, setCurrentPinInfo] = React.useState();
+    const [priorityParticipants, setPriorityParticipants] = React.useState([]);
 
 
     const [reactions] = useState({
@@ -1884,6 +1885,18 @@ function AntMedia(props) {
         setParticipantUpdated(!participantUpdated);
     }
 
+    const togglePriorityParticipant = (streamId) => {
+      setPriorityParticipants(prev => {
+        const isPresent = prev.includes(streamId);
+        if (isPresent) {
+          return prev.filter(id => id !== streamId);
+        } else if (prev.length < 3) {
+          return [...prev, streamId];
+        }
+        return prev;
+      });
+    };
+
 
 
     /**
@@ -2286,10 +2299,7 @@ function AntMedia(props) {
             handleStopScreenShare();
         }
 
-        if(role === WebinarRoles.TempListener) {
-            setInitialized(false);
-            createWebRTCAdaptor();
-        }
+        //createWebRTCAdaptor();
 
         setWaitingOrMeetingRoom("waiting");
     }, [isPlayOnly]);
@@ -2934,7 +2944,7 @@ function AntMedia(props) {
 
     function checkAndTurnOnLocalCamera() {
         if (isVideoEffectRunning) {
-            webRTCAdaptor?.turnOnEffectCamera(publishStreamId);
+            webRTCAdaptor.mediaManager.localStream.getVideoTracks()[0].enabled = true;
         } else {
             webRTCAdaptor?.turnOnLocalCamera(publishStreamId);
         }
@@ -2946,7 +2956,11 @@ function AntMedia(props) {
     }
 
     function checkAndTurnOffLocalCamera(streamId) {
+        if (isVideoEffectRunning) {
+            webRTCAdaptor.mediaManager.localStream.getVideoTracks()[0].enabled = false;
+        } else {
             webRTCAdaptor?.turnOffLocalCamera(publishStreamId);
+        }
 
         updateUserStatusMetadata(isMyMicMuted, false);
         setIsMyCamTurnedOff(true);
@@ -3369,7 +3383,9 @@ function AntMedia(props) {
                     checkVideoTrackHealth,
                     setInitialized,
                     currentPinInfo,
-                    unpinVideo
+                    unpinVideo,
+                    priorityParticipants,
+                    togglePriorityParticipant
                 }}
             >
                 {props.children}
@@ -3496,6 +3512,8 @@ function AntMedia(props) {
                             publishStreamId={publishStreamId}
                             pinVideo={pinVideo}
                             unpinVideo={unpinVideo}
+                            priorityParticipants={priorityParticipants}
+                            togglePriorityParticipant={togglePriorityParticipant}
                             pinFirstVideo={pinFirstVideo}
                             allParticipants={allParticipants}
                             participantUpdated={participantUpdated}
@@ -3593,6 +3611,8 @@ function AntMedia(props) {
                             handleEffectsOpen={(open) => handleEffectsOpen(open)}
                             setPublisherRequestListDrawerOpen={(open) => setPublisherRequestListDrawerOpen(open)}
                             currentPinInfo={currentPinInfo}
+                            priorityParticipants={priorityParticipants}
+                            togglePriorityParticipant={togglePriorityParticipant}
                         />
                         <EffectsDrawer
                             effectsDrawerOpen={effectsDrawerOpen}
