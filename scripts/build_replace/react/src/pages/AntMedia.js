@@ -1950,6 +1950,17 @@ function AntMedia(props) {
             console.log(videoLabel + " is assigned to " + streamId);
         }
         else {
+            const currentVideoLabelStream = videoTrackAssignments.filter(eachVideoTrackAssignment => eachVideoTrackAssignment.videoLabel === videoLabel).map(item => ({ ...item }));
+            const upcomingVideoLabelStream = videoTrackAssignments.filter(eachVideoTrackAssignment => eachVideoTrackAssignment.streamId === streamId).map(item => ({ ...item }));
+            //if the current videoLabel's stream and incoming stream id are not the same, current videoLabel's streamId was getting set to null. so we will be switching the streamId
+            if(currentVideoLabelStream[0].streamId !== streamId) {
+                if(upcomingVideoLabelStream.length === 0) {
+                    webRTCAdaptor?.assignVideoTrack(videoTrackAssignments[videoTrackAssignments.length - 1].videoLabel, currentVideoLabelStream[0].streamId, true);
+                } else {
+                    webRTCAdaptor?.assignVideoTrack(upcomingVideoLabelStream[0].videoLabel, currentVideoLabelStream[0].streamId, true);
+                }
+            }
+            
             //send reservation request for the stream id
             webRTCAdaptor?.assignVideoTrack(videoLabel, streamId, true);
             console.log(videoLabel + " will be assigned to " + streamId);
