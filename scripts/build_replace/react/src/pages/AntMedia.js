@@ -1922,7 +1922,7 @@ function AntMedia(props) {
         const isPresent = prev.includes(streamId);
         if (isPresent) {
           return prev.filter(id => id !== streamId);
-        } else if (prev.length < 3) {
+        } else if (prev.length < 2) {
           return [...prev, streamId];
         }
         return prev;
