@@ -4,3 +4,17 @@ webapp/src/main/webapp/
 .vscode/
 
 react/.env.development
+react/.idea/workspace.xml
+react/.env.fakeeh
+test/run.sh
+test/runw.sh
+
+
+# Environment variables
+.env
+
+
+# Build artifacts and local directories
+/plugins/
+/webapp/target/
+*.zip
