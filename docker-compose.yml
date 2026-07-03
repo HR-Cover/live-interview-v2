@@ -15,8 +15,5 @@ services:
     container_name: antmedia
     restart: unless-stopped
     entrypoint: /usr/local/antmedia/start.sh
-    ports:
-      - "5080:5080" # HTTP
-      - "5443:5443" # HTTPS
-      - "1935:1935" # RTMP
-      - "5554:5554/udp" # WebRTC
+    network_mode: host
+

@@ -55,8 +55,8 @@ RUN cd /home \
            exit 1; \
        fi
 
-# Copy the ConferenceCall plugin to the webapps directory for hot-deployment and rename it to set the application name
-COPY webapp/target/ConferenceCall.war /usr/local/antmedia/webapps/liveinterview.war
+# Copy the liveinterview plugin to the webapps directory for hot-deployment
+COPY webapp/target/liveinterview.war /usr/local/antmedia/webapps/liveinterview.war
 
 RUN if [ "true" = "$InstallMediaPush" ]; then \
         echo "test"; \
