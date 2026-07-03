@@ -1491,7 +1491,7 @@ function AntMedia(props) {
         } else if (info === "subtrackList") {
             let subtrackList = obj.subtrackList;
             console.log("subtrackList:", subtrackList);
-            let allParticipantsTemp = {};
+            let allParticipantsTemp = allParticipants;
             if (!isPlayOnly && publishStreamId) {
                 allParticipantsTemp[publishStreamId] = allParticipants[publishStreamId];
             }
@@ -1499,11 +1499,6 @@ function AntMedia(props) {
             // We are getting the subtracks of the room and adding them to the allParticipantsTemp
             subtrackList.forEach(subTrack => {
                 let broadcastObject = JSON.parse(subTrack);
-
-                if (broadcastObject.status === "finished") {
-                    console.log("Skipping finished subtrack: " + broadcastObject.streamId);
-                    return;
-                }
 
                 handleSubtrackBroadcastObject(broadcastObject, true);
 
@@ -1646,8 +1641,7 @@ function AntMedia(props) {
             clearInterval(requestVideoTrackAssignmentsInterval);
             videoTrackAssignmentsIntervalJob = null;
         } else if (info === "screen_share_stopped") {
-            // Reset layout when screen sharing stops to prevent grey screens
-            setParticipantUpdated(!participantUpdated);
+
         } else if (info === "screen_share_started") {
 
         } else if (info === "data_received") {
@@ -1910,8 +1904,8 @@ function AntMedia(props) {
     function unpinVideo(isManual) {
         console.log("*** unpin request isManual:" + isManual);
         console.trace();
-        if(isManual && !isNull(currentPinInfo) && currentPinInfo.streamId.endsWith("_presentation")) {
-            let currentPinInfoTemp = { ...currentPinInfo };
+        if(isManual && isNull(currentPinInfo) && currentPinInfo.streamId.endsWith("_presentation")) {
+            let currentPinInfoTemp = currentPinInfo;
             currentPinInfoTemp.pinned = false;
             setCurrentPinInfo(currentPinInfoTemp);
         }
@@ -1922,16 +1916,6 @@ function AntMedia(props) {
         }
         setParticipantUpdated(!participantUpdated);
     }
-
-    React.useEffect(() => {
-        if (!isNull(currentPinInfo) && currentPinInfo.pinned === true
-            && Object.keys(allParticipants).length > 0
-            && isNull(allParticipants[currentPinInfo.streamId])) {
-            console.log("Pinned participant " + currentPinInfo.streamId + " no longer exists. Unpinning.");
-            setCurrentPinInfo(null);
-            setParticipantUpdated(!participantUpdated);
-        }
-    }, [allParticipants, currentPinInfo]); // eslint-disable-line
 
     const togglePriorityParticipant = (streamId) => {
       setPriorityParticipants(prev => {
@@ -2741,17 +2725,6 @@ function AntMedia(props) {
     // we need to leave the room
     useBeforeUnload((ev) => {
         handleLeaveFromRoom();
-
-        try {
-            if (!isPlayOnly && publishStreamId && websocketURL) {
-                let restBaseUrl = websocketURL
-                    .replace(/^ws/, "http")
-                    .replace(/\/websocket.*$/, "/rest/v2");
-                navigator.sendBeacon(restBaseUrl + "/broadcasts/" + publishStreamId + "/stop");
-            }
-        } catch (e) {
-            console.error("Failed to send stop beacon on unload", e);
-        }
     });
 
     const handleSendNotificationEvent = React.useCallback((eventType, publishStreamId, info) => {
