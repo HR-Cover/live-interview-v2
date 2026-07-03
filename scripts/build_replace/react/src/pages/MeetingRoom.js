@@ -91,7 +91,7 @@ const MeetingRoom = React.memo((props) => {
 
   const pinnedParticipant = props?.allParticipants[props.currentPinInfo?.streamId];
 
-  const pinLayout = (typeof props.currentPinInfo !== "undefined" && props.currentPinInfo?.pinned);
+  const pinLayout = (typeof props.currentPinInfo !== "undefined" && props.currentPinInfo?.pinned && typeof pinnedParticipant !== "undefined");
 
   /* istanbul ignore next */
   return (

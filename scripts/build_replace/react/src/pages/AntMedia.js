@@ -523,6 +523,18 @@ function AntMedia(props) {
       });
     }, [priorityParticipants, videoTrackAssignments, currentPinInfo, webRTCAdaptor]);
 
+    // Self-healing for the pinned layout:
+    // If the currently pinned stream no longer exists in allParticipants (e.g. a shared screen was stopped/removed),
+    // unpin it so every participant's layout returns to the tiled view instead of showing an empty pinned area.
+    React.useEffect(() => {
+        if (!isNull(currentPinInfo)
+            && Object.keys(allParticipants).length > 0
+            && isNull(allParticipants[currentPinInfo.streamId])) {
+            console.log("pinned stream " + currentPinInfo.streamId + " is no longer available, unpinning");
+            unpinVideo(false);
+        }
+    }, [allParticipants, currentPinInfo]); // eslint-disable-line
+
     function handleUnauthorizedDialogExitClicked() {
 
         setUnAuthorizedDialogOpen(false)
@@ -1904,10 +1916,8 @@ function AntMedia(props) {
     function unpinVideo(isManual) {
         console.log("*** unpin request isManual:" + isManual);
         console.trace();
-        if(isManual && isNull(currentPinInfo) && currentPinInfo.streamId.endsWith("_presentation")) {
-            let currentPinInfoTemp = currentPinInfo;
-            currentPinInfoTemp.pinned = false;
-            setCurrentPinInfo(currentPinInfoTemp);
+        if(isManual && !isNull(currentPinInfo) && currentPinInfo.streamId.endsWith("_presentation")) {
+            setCurrentPinInfo({ ...currentPinInfo, pinned: false });
         }
         else {
             webRTCAdaptor?.assignVideoTrack(currentPinInfo?.videoLabel, currentPinInfo?.streamId, false);
@@ -2128,6 +2138,20 @@ function AntMedia(props) {
 
     function handleStopScreenShare() {
         setIsScreenShared(false);
+
+        // if our presentation is currently pinned, unpin it right away so our layout returns to tiled
+        // instead of waiting for the server's subtrackRemoved event
+        if (!isNull(currentPinInfo) && currentPinInfo.streamId === screenShareStreamId.current) {
+            unpinVideo(false);
+        }
+
+        // remove the presentation participant locally so checkScreenSharingStatus doesn't re-pin the dead stream
+        setAllParticipants((prevParticipants) => {
+            let allParticipantsTemp = { ...prevParticipants };
+            delete allParticipantsTemp[screenShareStreamId.current];
+            return allParticipantsTemp;
+        });
+
         screenShareWebRtcAdaptor.current.stop(screenShareStreamId.current);
         screenShareWebRtcAdaptor.current.closeStream();
         screenShareWebRtcAdaptor.current.closeWebSocket();
@@ -2653,6 +2677,13 @@ function AntMedia(props) {
             console.log("currentPinInfo:",currentPinInfo);
             //here we check if someone pinned manually after screen share
             if(!isNull(currentPinInfo) && currentPinInfo.pinningTime >= lastlySharedScreenTime) {
+                return;
+            }
+
+            //if it is our own screen share and we already stopped sharing, don't re-pin the dead stream
+            //(allParticipants may be a stale closure that still contains the removed presentation stream)
+            if (lastlySharedScreen === screenShareStreamId.current && !isScreenShared) {
+                console.log("own screen share is stopped, skipping pin for " + lastlySharedScreen);
                 return;
             }
 
