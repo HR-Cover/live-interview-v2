@@ -36,7 +36,3 @@ cp -a react/build/. webapp/src/main/webapp
 cd webapp
 mvn clean install -DskipTests -Dgpg.skip=true --quiet
 
-# Rename the WAR file to match what the Dockerfile expects
-if [ -f "target/ConferenceCall.war" ]; then
-    mv target/ConferenceCall.war target/liveinterview.war
-fi
