@@ -307,7 +307,13 @@ function AntMedia(props) {
 
     // Infinity mirror blocker state
     const [isEntireScreenShared, setIsEntireScreenShared] = useState(false);
-    const [isWindowFocused, setIsWindowFocused] = useState(typeof document !== "undefined" ? document.hasFocus() : true);
+    // We use document visibility (rather than window focus/blur) to detect whether the user is
+    // looking at this tab. window focus/blur also fires when DevTools or other same-window UI
+    // (e.g. the browser's address bar) steals input focus, which would incorrectly hide the
+    // overlay even though the user is still looking at the tab. visibilitychange only fires when
+    // the user actually switches tabs/apps or minimizes the window, which is what we care about here.
+    const [isWindowFocused, setIsWindowFocused] = useState(typeof document !== "undefined" ? document.visibilityState === "visible" : true);
+
 
     // this is for checking if my local camera is turned off.
     const [isMyCamTurnedOff, setIsMyCamTurnedOff] = useState(false);
@@ -1382,24 +1388,26 @@ function AntMedia(props) {
 
     // Infinity mirror blocker: track whether the user is actively looking at this app window.
     // The overlay in LayoutPinned should only show while the user is both sharing their entire
-    // screen/window AND currently focused on this tab - the moment they switch away (e.g. to look
+    // screen/window AND currently viewing this tab - the moment they switch away (e.g. to look
     // at their presentation), the overlay should disappear.
+    // NOTE: We intentionally use document.visibilitychange instead of window focus/blur events.
+    // window blur/focus also fire when something *within the same window* steals input focus
+    // (e.g. opening browser DevTools, clicking the address bar), which would incorrectly hide
+    // the overlay even though the user is still looking at this tab. visibilitychange only
+    // fires when the tab is actually hidden (switched away from, minimized, etc.), which is the
+    // real infinity-mirror risk scenario we want to detect.
     useEffect(() => {
-        function handleWindowFocus() {
-            setIsWindowFocused(true);
-        }
-        function handleWindowBlur() {
-            setIsWindowFocused(false);
+        function handleVisibilityChange() {
+            setIsWindowFocused(document.visibilityState === "visible");
         }
 
-        window.addEventListener('focus', handleWindowFocus);
-        window.addEventListener('blur', handleWindowBlur);
+        document.addEventListener('visibilitychange', handleVisibilityChange);
 
         return () => {
-            window.removeEventListener('focus', handleWindowFocus);
-            window.removeEventListener('blur', handleWindowBlur);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
         };
     }, []);
+
 
     useEffect(() => {
         createWebRTCAdaptor();
