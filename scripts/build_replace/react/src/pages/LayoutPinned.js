@@ -37,9 +37,10 @@ function LayoutPinned (props) {
     // 1. The pinned participant is the local user's presentation (streamId ends with "_presentation")
     // 2. The user shared their entire screen or browser window (isEntireScreenShared)
     // 3. The user is currently looking at this meeting window (isWindowFocused)
-    const isLocalPresentation = pinnedParticipant?.streamId?.endsWith("_presentation")
+    const isLocalPresentation = pinnedParticipant?.streamId
       && props?.publishStreamId
-      && pinnedParticipant.streamId.startsWith(props.publishStreamId);
+      && pinnedParticipant.streamId === props.publishStreamId + "_presentation";
+
     const shouldShowInfinityMirrorOverlay = isLocalPresentation
       && props?.isEntireScreenShared
       && props?.isWindowFocused;

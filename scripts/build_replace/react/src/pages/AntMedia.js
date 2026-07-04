@@ -307,7 +307,7 @@ function AntMedia(props) {
 
     // Infinity mirror blocker state
     const [isEntireScreenShared, setIsEntireScreenShared] = useState(false);
-    const [isWindowFocused, setIsWindowFocused] = useState(true);
+    const [isWindowFocused, setIsWindowFocused] = useState(typeof document !== "undefined" ? document.hasFocus() : true);
 
     // this is for checking if my local camera is turned off.
     const [isMyCamTurnedOff, setIsMyCamTurnedOff] = useState(false);
@@ -1380,10 +1380,32 @@ function AntMedia(props) {
         return tempBroadcastObject;
     }
 
+    // Infinity mirror blocker: track whether the user is actively looking at this app window.
+    // The overlay in LayoutPinned should only show while the user is both sharing their entire
+    // screen/window AND currently focused on this tab - the moment they switch away (e.g. to look
+    // at their presentation), the overlay should disappear.
+    useEffect(() => {
+        function handleWindowFocus() {
+            setIsWindowFocused(true);
+        }
+        function handleWindowBlur() {
+            setIsWindowFocused(false);
+        }
+
+        window.addEventListener('focus', handleWindowFocus);
+        window.addEventListener('blur', handleWindowBlur);
+
+        return () => {
+            window.removeEventListener('focus', handleWindowFocus);
+            window.removeEventListener('blur', handleWindowBlur);
+        };
+    }, []);
+
     useEffect(() => {
         createWebRTCAdaptor();
         //just run once when component is mounted
     }, []);  //eslint-disable-line
+
 
     function createWebRTCAdaptor() {
         reconnecting = false;
@@ -2153,6 +2175,7 @@ function AntMedia(props) {
 
     function handleStopScreenShare() {
         setIsScreenShared(false);
+        setIsEntireScreenShared(false);
 
         // if our presentation is currently pinned, unpin it right away so our layout returns to tiled
         // instead of waiting for the server's subtrackRemoved event
@@ -3630,6 +3653,8 @@ function AntMedia(props) {
                             toggleMic={(mute) => toggleMic(mute)}
                             microphoneButtonDisabled={microphoneButtonDisabled}
                             isScreenShared={isScreenShared}
+                            isEntireScreenShared={isEntireScreenShared}
+                            isWindowFocused={isWindowFocused}
                             handleStartScreenShare={() => handleStartScreenShare()}
                             handleStopScreenShare={() => handleStopScreenShare()}
                             numberOfUnReadMessages={numberOfUnReadMessages}
