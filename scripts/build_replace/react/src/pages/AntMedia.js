@@ -305,6 +305,10 @@ function AntMedia(props) {
     // this is for checking if I am sharing my screen with other participants.
     const [isScreenShared, setIsScreenShared] = useState(false);
 
+    // Infinity mirror blocker state
+    const [isEntireScreenShared, setIsEntireScreenShared] = useState(false);
+    const [isWindowFocused, setIsWindowFocused] = useState(true);
+
     // this is for checking if my local camera is turned off.
     const [isMyCamTurnedOff, setIsMyCamTurnedOff] = useState(false);
 
@@ -1442,6 +1446,17 @@ function AntMedia(props) {
                     stream.getVideoTracks()[0].addEventListener('ended', () => {
                         handleStopScreenShare();
                     });
+
+                    // Detect displaySurface to determine if entire screen or window is shared
+                    const settings = stream.getVideoTracks()[0].getSettings();
+                    const displaySurface = settings.displaySurface;
+                    // 'monitor' = entire screen, 'window' = specific app window (could still cause infinity mirror)
+                    // 'browser' = browser window, 'application' = application window
+                    if (displaySurface === 'monitor' || displaySurface === 'window' || displaySurface === 'browser') {
+                        setIsEntireScreenShared(true);
+                    } else {
+                        setIsEntireScreenShared(false);
+                    }
                 }
                 screenShareWebRtcAdaptor.current = new WebRTCAdaptor({
                     websocket_url: websocketURL,
