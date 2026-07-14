@@ -1482,11 +1482,14 @@ function AntMedia(props) {
                     const displaySurface = settings.displaySurface;
                     // 'monitor' = entire screen, 'window' = specific app window (could still cause infinity mirror)
                     // 'browser' = browser window, 'application' = application window
-                    if (displaySurface === 'monitor' || displaySurface === 'window' || displaySurface === 'browser') {
-                        setIsEntireScreenShared(true);
-                    } else {
-                        setIsEntireScreenShared(false);
-                    }
+                    // NOTE: Firefox does not implement MediaTrackSettings.displaySurface, so it is
+                    // undefined there. Since we can't tell what was shared, be conservative and treat
+                    // the unknown case as an infinity-mirror risk so the overlay protection still works.
+                    const isRiskySurface = displaySurface === undefined
+                        || displaySurface === 'monitor'
+                        || displaySurface === 'window'
+                        || displaySurface === 'browser';
+                    setIsEntireScreenShared(isRiskySurface);
                 }
                 screenShareWebRtcAdaptor.current = new WebRTCAdaptor({
                     websocket_url: websocketURL,
