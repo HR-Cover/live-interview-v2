@@ -2201,6 +2201,16 @@ function AntMedia(props) {
             return allParticipantsTemp;
         });
 
+        // notify the other participants explicitly over the data channel.
+        // older Ant Media Server versions don't reliably emit subtrackRemoved / updated
+        // broadcast objects when the presentation subtrack leaves, so remote clients
+        // would otherwise keep a stale isScreenShared participant and re-pin the dead stream
+        let notEvent = {
+            streamId: screenShareStreamId.current, eventType: "SCREEN_SHARED_OFF"
+        };
+        console.info("send notification event", notEvent);
+        webRTCAdaptor?.sendData(publishStreamId, JSON.stringify(notEvent));
+
         screenShareWebRtcAdaptor.current.stop(screenShareStreamId.current);
         screenShareWebRtcAdaptor.current.closeStream();
         screenShareWebRtcAdaptor.current.closeWebSocket();
@@ -2501,6 +2511,18 @@ function AntMedia(props) {
                 if (notificationEvent.streamId === publishStreamId && !isScreenShared) {
                     updateVideoSendResolution(false);
                 }
+            } else if (eventType === "SCREEN_SHARED_OFF") {
+                // the sender stopped their screen share. Unpin it if pinned and drop the
+                // stale presentation participant locally (fallback for older AMS versions
+                // that don't emit subtrackRemoved reliably)
+                if (!isNull(currentPinInfo) && currentPinInfo.streamId === notificationEvent.streamId) {
+                    unpinVideo(false);
+                }
+                setAllParticipants((prevParticipants) => {
+                    let allParticipantsTemp = { ...prevParticipants };
+                    delete allParticipantsTemp[notificationEvent.streamId];
+                    return allParticipantsTemp;
+                });
             } else if (eventType === "VIDEO_TRACK_ASSIGNMENT_LIST") {
 
                 // There are 2 operations here:
