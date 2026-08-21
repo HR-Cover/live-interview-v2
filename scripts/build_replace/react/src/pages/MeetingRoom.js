@@ -91,7 +91,7 @@ const MeetingRoom = React.memo((props) => {
 
   const pinnedParticipant = props?.allParticipants[props.currentPinInfo?.streamId];
 
-  const pinLayout = (typeof props.currentPinInfo !== "undefined" && props.currentPinInfo?.pinned);
+  const pinLayout = (typeof props.currentPinInfo !== "undefined" && props.currentPinInfo?.pinned && typeof pinnedParticipant !== "undefined");
 
   /* istanbul ignore next */
   return (
@@ -140,33 +140,35 @@ const MeetingRoom = React.memo((props) => {
               ))}
               <div id="meeting-gallery" style={{height: "calc(100vh - 80px)"}}>
                 {pinLayout ?
-                    (<LayoutPinned
-                        pinnedParticipant={pinnedParticipant}
-                        width={gallerySize.w}
-                        height={gallerySize.h}
-                        globals={props?.globals}
-                        publishStreamId={props?.publishStreamId}
-                        pinVideo={props?.pinVideo}
-                        unpinVideo={props?.unpinVideo}
-                        allParticipants={props?.allParticipants}
-                        videoTrackAssignments={props?.videoTrackAssignments}
-                        updateMaxVideoTrackCount={props?.updateMaxVideoTrackCount}
-                        talkers={props?.talkers}
-                        streamName={props?.streamName}
-                        isPublished={props?.isPublished}
-                        isPlayOnly={props?.isPlayOnly}
-                        isMyMicMuted={props?.isMyMicMuted}
-                        isMyCamTurnedOff={props?.isMyCamTurnedOff}
-                        setAudioLevelListener={props?.setAudioLevelListener}
-                        setParticipantIdMuted={props?.setParticipantIdMuted}
-                        turnOnYourMicNotification={props?.turnOnYourMicNotification}
-                        turnOffYourMicNotification={props?.turnOffYourMicNotification}
-                        turnOffYourCamNotification={props?.turnOffYourCamNotification}
-                        isAdmin={props?.isAdmin}
-                        localVideo={props?.localVideo}
-                        localVideoCreate={props?.localVideoCreate}
-                        priorityParticipants={props?.priorityParticipants}
-                    />)
+                     (<LayoutPinned
+                         pinnedParticipant={pinnedParticipant}
+                         width={gallerySize.w}
+                         height={gallerySize.h}
+                         globals={props?.globals}
+                         publishStreamId={props?.publishStreamId}
+                         pinVideo={props?.pinVideo}
+                         unpinVideo={props?.unpinVideo}
+                         allParticipants={props?.allParticipants}
+                         videoTrackAssignments={props?.videoTrackAssignments}
+                         updateMaxVideoTrackCount={props?.updateMaxVideoTrackCount}
+                         talkers={props?.talkers}
+                         streamName={props?.streamName}
+                         isPublished={props?.isPublished}
+                         isPlayOnly={props?.isPlayOnly}
+                         isMyMicMuted={props?.isMyMicMuted}
+                         isMyCamTurnedOff={props?.isMyCamTurnedOff}
+                         setAudioLevelListener={props?.setAudioLevelListener}
+                         setParticipantIdMuted={props?.setParticipantIdMuted}
+                         turnOnYourMicNotification={props?.turnOnYourMicNotification}
+                         turnOffYourMicNotification={props?.turnOffYourMicNotification}
+                         turnOffYourCamNotification={props?.turnOffYourCamNotification}
+                         isAdmin={props?.isAdmin}
+                         localVideo={props?.localVideo}
+                         localVideoCreate={props?.localVideoCreate}
+                         priorityParticipants={props?.priorityParticipants}
+                         isEntireScreenShared={props?.isEntireScreenShared}
+                         isWindowFocused={props?.isWindowFocused}
+                     />)
                     :
                     (<LayoutTiled
                         width={gallerySize.w}

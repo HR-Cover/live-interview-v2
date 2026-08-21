@@ -30,6 +30,21 @@ function LayoutPinned (props) {
       playingParticipants.push(props.videoTrackAssignments.find(e => e.streamId === pinnedParticipant.streamId));
       pinnedParticipantName = props?.allParticipants[pinnedParticipant.streamId]?.name;
     }
+
+    // Infinity mirror blocker: Check if the pinned stream is the local user's screen share
+    // and whether we should hide it to prevent the infinity mirror effect.
+    // The overlay only appears when:
+    // 1. The pinned participant is the local user's presentation (streamId ends with "_presentation")
+    // 2. The user shared their entire screen or browser window (isEntireScreenShared)
+    // 3. The user is currently looking at this meeting window (isWindowFocused)
+    const isLocalPresentation = pinnedParticipant?.streamId
+      && props?.publishStreamId
+      && pinnedParticipant.streamId === props.publishStreamId + "_presentation";
+
+    const shouldShowInfinityMirrorOverlay = isLocalPresentation
+      && props?.isEntireScreenShared
+      && props?.isWindowFocused;
+
     /* istanbul ignore next */
     return (
       pinnedParticipant ? (
@@ -66,6 +81,45 @@ function LayoutPinned (props) {
               localVideo={props?.localVideo}
               localVideoCreate={(tempLocalVideo) => props?.localVideoCreate(tempLocalVideo)}
             />
+            {/* Infinity Mirror Blocker Overlay */}
+            {shouldShowInfinityMirrorOverlay && (
+              <div style={{
+                position: "absolute",
+                inset: 0,
+                backgroundColor: "rgba(31, 41, 55, 0.95)", // gray-800 with slight transparency
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "white",
+                zIndex: 50,
+                padding: "16px"
+              }}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{marginBottom: "12px", opacity: 0.7}}>
+                  <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                  <line x1="8" y1="21" x2="16" y2="21"></line>
+                  <line x1="12" y1="17" x2="12" y2="21"></line>
+                </svg>
+                <p style={{
+                  textAlign: "center",
+                  fontWeight: "600",
+                  fontSize: "1rem",
+                  margin: "0 0 8px 0"
+                }}>
+                  You are presenting your screen
+                </p>
+                <p style={{
+                  textAlign: "center",
+                  fontSize: "0.75rem",
+                  opacity: 0.6,
+                  maxWidth: "280px",
+                  margin: 0,
+                  lineHeight: "1.4"
+                }}>
+                  To avoid an infinity mirror, look at the tab or window you want to show. Your audience can see your screen share normally.
+                </p>
+              </div>
+            )}
           </div>
         </div>
       ) : null
