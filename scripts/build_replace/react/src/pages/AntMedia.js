@@ -305,6 +305,16 @@ function AntMedia(props) {
     // this is for checking if I am sharing my screen with other participants.
     const [isScreenShared, setIsScreenShared] = useState(false);
 
+    // Infinity mirror blocker state
+    const [isEntireScreenShared, setIsEntireScreenShared] = useState(false);
+    // We use document visibility (rather than window focus/blur) to detect whether the user is
+    // looking at this tab. window focus/blur also fires when DevTools or other same-window UI
+    // (e.g. the browser's address bar) steals input focus, which would incorrectly hide the
+    // overlay even though the user is still looking at the tab. visibilitychange only fires when
+    // the user actually switches tabs/apps or minimizes the window, which is what we care about here.
+    const [isWindowFocused, setIsWindowFocused] = useState(typeof document !== "undefined" ? document.visibilityState === "visible" : true);
+
+
     // this is for checking if my local camera is turned off.
     const [isMyCamTurnedOff, setIsMyCamTurnedOff] = useState(false);
 
@@ -1376,10 +1386,34 @@ function AntMedia(props) {
         return tempBroadcastObject;
     }
 
+    // Infinity mirror blocker: track whether the user is actively looking at this app window.
+    // The overlay in LayoutPinned should only show while the user is both sharing their entire
+    // screen/window AND currently viewing this tab - the moment they switch away (e.g. to look
+    // at their presentation), the overlay should disappear.
+    // NOTE: We intentionally use document.visibilitychange instead of window focus/blur events.
+    // window blur/focus also fire when something *within the same window* steals input focus
+    // (e.g. opening browser DevTools, clicking the address bar), which would incorrectly hide
+    // the overlay even though the user is still looking at this tab. visibilitychange only
+    // fires when the tab is actually hidden (switched away from, minimized, etc.), which is the
+    // real infinity-mirror risk scenario we want to detect.
+    useEffect(() => {
+        function handleVisibilityChange() {
+            setIsWindowFocused(document.visibilityState === "visible");
+        }
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        return () => {
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
+    }, []);
+
+
     useEffect(() => {
         createWebRTCAdaptor();
         //just run once when component is mounted
     }, []);  //eslint-disable-line
+
 
     function createWebRTCAdaptor() {
         reconnecting = false;
@@ -1442,6 +1476,20 @@ function AntMedia(props) {
                     stream.getVideoTracks()[0].addEventListener('ended', () => {
                         handleStopScreenShare();
                     });
+
+                    // Detect displaySurface to determine if entire screen or window is shared
+                    const settings = stream.getVideoTracks()[0].getSettings();
+                    const displaySurface = settings.displaySurface;
+                    // 'monitor' = entire screen, 'window' = specific app window (could still cause infinity mirror)
+                    // 'browser' = browser window, 'application' = application window
+                    // NOTE: Firefox does not implement MediaTrackSettings.displaySurface, so it is
+                    // undefined there. Since we can't tell what was shared, be conservative and treat
+                    // the unknown case as an infinity-mirror risk so the overlay protection still works.
+                    const isRiskySurface = displaySurface === undefined
+                        || displaySurface === 'monitor'
+                        || displaySurface === 'window'
+                        || displaySurface === 'browser';
+                    setIsEntireScreenShared(isRiskySurface);
                 }
                 screenShareWebRtcAdaptor.current = new WebRTCAdaptor({
                     websocket_url: websocketURL,
@@ -2138,6 +2186,7 @@ function AntMedia(props) {
 
     function handleStopScreenShare() {
         setIsScreenShared(false);
+        setIsEntireScreenShared(false);
 
         // if our presentation is currently pinned, unpin it right away so our layout returns to tiled
         // instead of waiting for the server's subtrackRemoved event
@@ -2151,6 +2200,16 @@ function AntMedia(props) {
             delete allParticipantsTemp[screenShareStreamId.current];
             return allParticipantsTemp;
         });
+
+        // notify the other participants explicitly over the data channel.
+        // older Ant Media Server versions don't reliably emit subtrackRemoved / updated
+        // broadcast objects when the presentation subtrack leaves, so remote clients
+        // would otherwise keep a stale isScreenShared participant and re-pin the dead stream
+        let notEvent = {
+            streamId: screenShareStreamId.current, eventType: "SCREEN_SHARED_OFF"
+        };
+        console.info("send notification event", notEvent);
+        webRTCAdaptor?.sendData(publishStreamId, JSON.stringify(notEvent));
 
         screenShareWebRtcAdaptor.current.stop(screenShareStreamId.current);
         screenShareWebRtcAdaptor.current.closeStream();
@@ -2452,6 +2511,18 @@ function AntMedia(props) {
                 if (notificationEvent.streamId === publishStreamId && !isScreenShared) {
                     updateVideoSendResolution(false);
                 }
+            } else if (eventType === "SCREEN_SHARED_OFF") {
+                // the sender stopped their screen share. Unpin it if pinned and drop the
+                // stale presentation participant locally (fallback for older AMS versions
+                // that don't emit subtrackRemoved reliably)
+                if (!isNull(currentPinInfo) && currentPinInfo.streamId === notificationEvent.streamId) {
+                    unpinVideo(false);
+                }
+                setAllParticipants((prevParticipants) => {
+                    let allParticipantsTemp = { ...prevParticipants };
+                    delete allParticipantsTemp[notificationEvent.streamId];
+                    return allParticipantsTemp;
+                });
             } else if (eventType === "VIDEO_TRACK_ASSIGNMENT_LIST") {
 
                 // There are 2 operations here:
@@ -3615,6 +3686,8 @@ function AntMedia(props) {
                             toggleMic={(mute) => toggleMic(mute)}
                             microphoneButtonDisabled={microphoneButtonDisabled}
                             isScreenShared={isScreenShared}
+                            isEntireScreenShared={isEntireScreenShared}
+                            isWindowFocused={isWindowFocused}
                             handleStartScreenShare={() => handleStartScreenShare()}
                             handleStopScreenShare={() => handleStopScreenShare()}
                             numberOfUnReadMessages={numberOfUnReadMessages}
